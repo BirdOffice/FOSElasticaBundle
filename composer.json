@@ -1,5 +1,5 @@
 {
-    "name": "friendsofsymfony/elastica-bundle",
+    "name": "birdoffice/elastica-bundle",
     "type": "symfony-bundle",
     "description": "Elasticsearch PHP integration for your Symfony project using Elastica",
     "keywords": [
@@ -9,7 +9,7 @@
         "mongodb",
         "search"
     ],
-    "homepage": "https://github.com/FriendsOfSymfony/FOSElasticaBundle",
+    "homepage": "https://github.com/BirdOffice/FOSElasticaBundle",
     "license": "MIT",
     "authors": [
         {
