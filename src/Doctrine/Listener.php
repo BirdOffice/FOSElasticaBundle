@@ -3,7 +3,7 @@
 /*
  * This file is part of the FOSElasticaBundle package.
  *
- * (c) FriendsOfSymfony <http://friendsofsymfony.github.com/>
+ * (c) FriendsOfSymfony <https://friendsofsymfony.github.com/>
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -74,18 +74,15 @@ class Listener
     /**
      * Constructor.
      *
-     * @param ObjectPersisterInterface $objectPersister
-     * @param IndexableInterface       $indexable
-     * @param array                    $config
-     * @param LoggerInterface          $logger
+     * @param LoggerInterface $logger
      */
     public function __construct(
         ObjectPersisterInterface $objectPersister,
         IndexableInterface $indexable,
         array $config = [],
-        LoggerInterface $logger = null
+        ?LoggerInterface $logger = null
     ) {
-        $this->config = array_merge([
+        $this->config = \array_merge([
             'identifier' => 'id',
             'defer' => false,
         ], $config);
@@ -112,8 +109,6 @@ class Listener
 
     /**
      * Looks for new objects that should be indexed.
-     *
-     * @param LifecycleEventArgs $eventArgs
      */
     public function postPersist(LifecycleEventArgs $eventArgs)
     {
@@ -126,8 +121,6 @@ class Listener
 
     /**
      * Looks for objects being updated that should be indexed or removed from the index.
-     *
-     * @param LifecycleEventArgs $eventArgs
      */
     public function postUpdate(LifecycleEventArgs $eventArgs)
     {
@@ -146,8 +139,6 @@ class Listener
     /**
      * Delete objects preRemove instead of postRemove so that we have access to the id.  Because this is called
      * preRemove, first check that the entity is managed by Doctrine.
-     *
-     * @param LifecycleEventArgs $eventArgs
      */
     public function preRemove(LifecycleEventArgs $eventArgs)
     {
@@ -200,15 +191,15 @@ class Listener
     private function persistScheduled()
     {
         if ($this->shouldPersist()) {
-            if (count($this->scheduledForInsertion)) {
+            if (\count($this->scheduledForInsertion)) {
                 $this->objectPersister->insertMany($this->scheduledForInsertion);
                 $this->scheduledForInsertion = [];
             }
-            if (count($this->scheduledForUpdate)) {
+            if (\count($this->scheduledForUpdate)) {
                 $this->objectPersister->replaceMany($this->scheduledForUpdate);
                 $this->scheduledForUpdate = [];
             }
-            if (count($this->scheduledForDeletion)) {
+            if (\count($this->scheduledForDeletion)) {
                 $this->objectPersister->deleteManyByIdentifiers($this->scheduledForDeletion);
                 $this->scheduledForDeletion = [];
             }
@@ -222,9 +213,23 @@ class Listener
      */
     private function scheduleForDeletion($object)
     {
-        if ($identifierValue = $this->propertyAccessor->getValue($object, $this->config['identifier'])) {
-            $this->scheduledForDeletion[] = !is_scalar($identifierValue) ? (string) $identifierValue : $identifierValue;
+        $document = $this->objectPersister->transformToElasticaDocument($object)->toArray();
+        $id = isset($document['_id']) ? $document['_id'] : null;
+        $parentId = isset($document['_parent']) ? $document['_parent'] : null;
+        $routingId = isset($document['_routing']) ? $document['_routing'] : null;
+        if ($id === null) {
+            return;
         }
+        $routing = 0;
+        if ($parentId !== null) {
+            $routing = $parentId;
+        } else if ($routingId !== null) {
+            $routing = $routingId;
+        }
+        if (!isset($this->scheduledForDeletionByRouting[$routing])) {
+            $this->scheduledForDeletionByRouting[$routing] = [];
+        }
+        $this->scheduledForDeletionByRouting[$routing][] = $id;
     }
 
     /**
@@ -243,5 +248,3 @@ class Listener
         );
     }
 }
-
-class_exists(LifecycleEventArgs::class);
