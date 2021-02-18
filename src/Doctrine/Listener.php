@@ -185,6 +185,7 @@ class Listener
     }
 
     /**
+     * CUSTOM DELETE BO
      * Persist scheduled objects to ElasticSearch
      * After persisting, clear the scheduled queue to prevent multiple data updates when using multiple flush calls.
      */
@@ -199,23 +200,41 @@ class Listener
                 $this->objectPersister->replaceMany($this->scheduledForUpdate);
                 $this->scheduledForUpdate = [];
             }
-            if (\count($this->scheduledForDeletion)) {
-                $this->objectPersister->deleteManyByIdentifiers($this->scheduledForDeletion);
+            if (count($this->scheduledForDeletion)) {
+                foreach ($this->scheduledForDeletion as $routing => $ids) {
+                    $routing = $routing === 0 ? false: $routing;
+                    $this->objectPersister->deleteManyByIdentifiers($ids, $routing);
+                }
                 $this->scheduledForDeletion = [];
             }
         }
     }
 
     /**
+     * CUSTOM FUNCTION BO
      * Record the specified identifier to delete. Do not need to entire object.
      *
      * @param object $object
      */
     private function scheduleForDeletion($object)
     {
-        if ($identifierValue = $this->propertyAccessor->getValue($object, $this->config['identifier'])) {
-            $this->scheduledForDeletion[] = !\is_scalar($identifierValue) ? (string) $identifierValue : $identifierValue;
+        $document = $this->objectPersister->transformToElasticaDocument($object)->toArray();
+        $id = isset($document['_id']) ? $document['_id'] : null;
+        $parentId = isset($document['_parent']) ? $document['_parent'] : null;
+        $routingId = isset($document['_routing']) ? $document['_routing'] : null;
+        if ($id === null) {
+            return;
         }
+        $routing = 0;
+        if ($parentId !== null) {
+            $routing = $parentId;
+        } else if ($routingId !== null) {
+            $routing = $routingId;
+        }
+        if (!isset($this->scheduledForDeletion[$routing])) {
+            $this->scheduledForDeletion[$routing] = [];
+        }
+        $this->scheduledForDeletion[$routing][] = $id;
     }
 
     /**
