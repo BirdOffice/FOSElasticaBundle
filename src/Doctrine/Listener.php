@@ -185,6 +185,7 @@ class Listener
     }
 
     /**
+     * CUSTOM DELETE BO
      * Persist scheduled objects to ElasticSearch
      * After persisting, clear the scheduled queue to prevent multiple data updates when using multiple flush calls.
      */
@@ -200,13 +201,17 @@ class Listener
                 $this->scheduledForUpdate = [];
             }
             if (\count($this->scheduledForDeletion)) {
-                $this->objectPersister->deleteManyByIdentifiers($this->scheduledForDeletion);
+                foreach ($this->scheduledForDeletion as $routing => $ids) {
+                    $routing = $routing === 0 ? false: $routing;
+                    $this->objectPersister->deleteManyByIdentifiers($ids, $routing);
+                }
                 $this->scheduledForDeletion = [];
             }
         }
     }
 
     /**
+     * CUSTOM FUNCTION BO
      * Record the specified identifier to delete. Do not need to entire object.
      *
      * @param object $object
@@ -226,10 +231,10 @@ class Listener
         } else if ($routingId !== null) {
             $routing = $routingId;
         }
-        if (!isset($this->scheduledForDeletionByRouting[$routing])) {
-            $this->scheduledForDeletionByRouting[$routing] = [];
+        if (!isset($this->scheduledForDeletion[$routing])) {
+            $this->scheduledForDeletion[$routing] = [];
         }
-        $this->scheduledForDeletionByRouting[$routing][] = $id;
+        $this->scheduledForDeletion[$routing][] = $id;
     }
 
     /**
