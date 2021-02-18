@@ -200,6 +200,7 @@ class Listener
                 $this->objectPersister->replaceMany($this->scheduledForUpdate);
                 $this->scheduledForUpdate = [];
             }
+            
             if (\count($this->scheduledForDeletion)) {
                 foreach ($this->scheduledForDeletion as $routing => $ids) {
                     $routing = $routing === 0 ? false: $routing;
